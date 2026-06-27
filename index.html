@@ -616,6 +616,65 @@ input[type=range] { width: 100%; accent-color: var(--brand); cursor: pointer; }
 .scan-servings-row .field-group { flex: 1; }
 #scan-file-input { display: none; }
 
+/* AI Scan Banner */
+.ai-scan-banner {
+  background: linear-gradient(135deg, rgba(94,92,230,.12), rgba(148,152,209,.08));
+  border: 1px solid rgba(94,92,230,.35);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.ai-scan-banner-top {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.ai-badge {
+  background: var(--brand-mid); color: #fff;
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 99px; letter-spacing: .3px; flex-shrink: 0;
+}
+.ai-scan-label {
+  font-size: 12.5px; font-weight: 600; color: var(--txt-1); flex: 1;
+}
+.ai-scan-btn {
+  font-size: 11.5px; padding: 5px 12px; white-space: nowrap; flex-shrink: 0;
+}
+.ai-scan-sub {
+  font-size: 11px; color: var(--txt-3); margin: 0; line-height: 1.5;
+}
+/* AI Scan Status */
+.ai-scan-status { margin-bottom: 12px; }
+.ai-scan-loading {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--brand-lt); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-size: 12px; color: var(--brand-mid);
+}
+.ai-spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(94,92,230,.25); border-top-color: var(--brand-mid);
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ai-scan-result {
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-size: 11.5px; line-height: 1.6;
+}
+.ai-scan-result.success {
+  background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.3); color: var(--txt-2);
+}
+.ai-scan-result.error {
+  background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.3); color: #f87171;
+}
+.ai-scan-result .ai-result-row {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+.ai-scan-result .ai-checkmark { color: #4ade80; font-size: 13px; }
+.ai-scan-result .ai-rescan-link {
+  color: var(--brand-mid); cursor: pointer; font-size: 11px;
+  text-decoration: underline; margin-left: auto;
+}
+.ai-scan-result .ai-rescan-link:hover { opacity: .8; }
+
 /* Zoom modal for label photo */
 .zoom-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.85);
@@ -1091,9 +1150,27 @@ input[type=range] { width: 100%; accent-color: var(--brand); cursor: pointer; }
               </button>
             </div>
             <div class="scan-form-col">
-              <div class="scan-hint-banner">
+              <div class="ai-scan-banner" id="ai-scan-banner">
+                <div class="ai-scan-banner-top">
+                  <span class="ai-badge">✨ AI</span>
+                  <span class="ai-scan-label">Scan otomatis dengan AI</span>
+                  <button class="btn btn-primary ai-scan-btn" id="ai-scan-btn" onclick="runAIScan()">
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Baca Label
+                  </button>
+                </div>
+                <p class="ai-scan-sub">Klik tombol di atas — AI akan membaca tabel gizi dari foto dan mengisi kolom secara otomatis.</p>
+              </div>
+              <div class="ai-scan-status" id="ai-scan-status" style="display:none">
+                <div class="ai-scan-loading" id="ai-scan-loading" style="display:none">
+                  <span class="ai-spinner"></span>
+                  <span id="ai-scan-loading-text">AI sedang membaca label gizi...</span>
+                </div>
+                <div class="ai-scan-result" id="ai-scan-result" style="display:none"></div>
+              </div>
+              <div class="scan-hint-banner" id="scan-manual-hint" style="display:none">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                Lihat foto di samping, lalu salin angka dari "Informasi Nilai Gizi" pada kemasan ke kolom di bawah ini.
+                Isi angka gizi secara manual dari foto di samping.
               </div>
               <div class="form-row" style="margin-bottom:10px">
                 <div class="field-group" style="flex:2">
@@ -2027,11 +2104,146 @@ function handleScanPhoto(event) {
     document.getElementById('scan-photo-img').src = scanPhotoDataUrl;
     document.getElementById('scan-dropzone').classList.add('hidden');
     document.getElementById('scan-preview-wrap').classList.add('open');
-    // Auto-fokus ke kolom kalori biar langsung bisa ketik
-    setTimeout(() => document.getElementById('sc-cal').focus(), 150);
+    // Reset AI status UI
+    const banner = document.getElementById('ai-scan-banner');
+    if (banner) {
+      banner.style.display = '';
+      const btn = banner.querySelector('.ai-scan-btn');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Baca Label'; }
+    }
+    const statusEl = document.getElementById('ai-scan-status');
+    if (statusEl) statusEl.style.display = 'none';
+    const manualHint = document.getElementById('scan-manual-hint');
+    if (manualHint) manualHint.style.display = 'none';
+    // Auto-jalankan AI scan setelah foto dimuat
+    setTimeout(() => runAIScan(), 400);
   };
   reader.readAsDataURL(file);
-  event.target.value = ''; // reset agar bisa pilih file yang sama lagi nanti
+  event.target.value = '';
+}
+
+async function runAIScan() {
+  if (!scanPhotoDataUrl) return;
+
+  const banner = document.getElementById('ai-scan-banner');
+  const status = document.getElementById('ai-scan-status');
+  const loading = document.getElementById('ai-scan-loading');
+  const result = document.getElementById('ai-scan-result');
+  const manualHint = document.getElementById('scan-manual-hint');
+  const scanBtn = document.getElementById('ai-scan-btn');
+
+  if (banner) banner.style.display = 'none';
+  if (status) status.style.display = '';
+  if (loading) loading.style.display = 'flex';
+  if (result) result.style.display = 'none';
+  if (scanBtn) scanBtn.disabled = true;
+
+  const loadingTexts = [
+    'AI sedang membaca label gizi...',
+    'Mengidentifikasi tabel nutrisi...',
+    'Mengekstrak nilai gizi...',
+  ];
+  let ti = 0;
+  const ltEl = document.getElementById('ai-scan-loading-text');
+  if (ltEl) ltEl.textContent = loadingTexts[0];
+  const ltInterval = setInterval(() => {
+    ti = (ti + 1) % loadingTexts.length;
+    if (ltEl) ltEl.textContent = loadingTexts[ti];
+  }, 1800);
+
+  try {
+    const base64Data = scanPhotoDataUrl.split(',')[1];
+    const mediaType = scanPhotoDataUrl.split(';')[0].split(':')[1];
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Data } },
+            { type: 'text', text: `Kamu adalah asisten baca label gizi makanan Indonesia. Lihat foto ini dan cari tabel "Informasi Nilai Gizi" atau "Nutrition Facts".\n\nEkstrak data berikut (per SATU sajian / per serving):\n- Nama produk (jika terlihat di kemasan)\n- Energi total / Kalori (kkal)\n- Lemak Total (g)\n- Karbohidrat Total (g)\n- Gula (g)\n- Protein (g)\n\nJawab HANYA dalam format JSON berikut, tanpa teks lain:\n{"nama":"nama produk atau null","kalori":angka_atau_null,"lemak":angka_atau_null,"karbohidrat":angka_atau_null,"gula":angka_atau_null,"protein":angka_atau_null,"catatan":"pesan singkat jika ada nilai tidak terbaca, atau null"}\n\nJika foto bukan label gizi atau tidak terbaca sama sekali:\n{"error":"alasan singkat"}` }
+          ]
+        }]
+      })
+    });
+
+    clearInterval(ltInterval);
+
+    if (!response.ok) throw new Error('API error ' + response.status);
+
+    const data = await response.json();
+    const text = (data.content || []).map(b => b.text || '').join('').trim();
+
+    let parsed;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('Format tidak valid');
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch { throw new Error('Gagal membaca respons AI'); }
+
+    if (loading) loading.style.display = 'none';
+    if (result) result.style.display = '';
+    if (scanBtn) scanBtn.disabled = false;
+
+    if (parsed.error) {
+      result.className = 'ai-scan-result error';
+      result.innerHTML = `<div class="ai-result-row"><span>⚠️</span><span>${parsed.error}. Pastikan foto memperlihatkan tabel gizi dengan jelas.</span></div><div style="margin-top:8px"><span class="ai-rescan-link" onclick="showManualMode()">Isi manual →</span></div>`;
+    } else {
+      if (parsed.nama)        document.getElementById('sc-name').value  = parsed.nama;
+      if (parsed.kalori  != null) document.getElementById('sc-cal').value   = parsed.kalori;
+      if (parsed.karbohidrat != null) document.getElementById('sc-carb').value  = parsed.karbohidrat;
+      if (parsed.protein != null) document.getElementById('sc-prot').value  = parsed.protein;
+      if (parsed.lemak   != null) document.getElementById('sc-fat').value   = parsed.lemak;
+      if (parsed.gula    != null) document.getElementById('sc-sugar').value = parsed.gula;
+      updateScanPreviewTotals();
+
+      const fields = [
+        parsed.kalori != null ? `${parsed.kalori} kkal` : null,
+        parsed.karbohidrat != null ? `Karbo ${parsed.karbohidrat}g` : null,
+        parsed.protein != null ? `Protein ${parsed.protein}g` : null,
+        parsed.lemak != null ? `Lemak ${parsed.lemak}g` : null,
+        parsed.gula != null ? `Gula ${parsed.gula}g` : null,
+      ].filter(Boolean);
+
+      result.className = 'ai-scan-result success';
+      result.innerHTML = `<div class="ai-result-row"><span class="ai-checkmark">✓</span><strong>Label gizi berhasil dibaca!</strong><span class="ai-rescan-link" onclick="runAIScan()">Scan ulang</span></div><div style="margin-top:4px;font-size:11px;color:var(--txt-3)">${fields.join(' · ')}${parsed.catatan ? ' · <em>' + parsed.catatan + '</em>' : ''}</div>`;
+
+      const missingCount = [parsed.kalori, parsed.karbohidrat, parsed.protein, parsed.lemak, parsed.gula].filter(v => v == null).length;
+      if (missingCount > 0 && manualHint) {
+        manualHint.style.display = '';
+        manualHint.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--brand-mid);fill:none;stroke-width:2;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> ${missingCount} nilai tidak terbaca — periksa foto dan isi manual jika perlu.`;
+      }
+      setTimeout(() => document.getElementById('sc-servings').focus(), 100);
+    }
+
+    if (banner) {
+      banner.style.display = '';
+      const btn = banner.querySelector('.ai-scan-btn');
+      if (btn) btn.innerHTML = '↻ Scan Ulang';
+    }
+
+  } catch (err) {
+    clearInterval(ltInterval);
+    if (loading) loading.style.display = 'none';
+    if (result) result.style.display = '';
+    if (scanBtn) scanBtn.disabled = false;
+    result.className = 'ai-scan-result error';
+    result.innerHTML = `<div class="ai-result-row"><span>⚠️</span><span>Gagal: ${err.message}.</span></div><div style="margin-top:6px"><span class="ai-rescan-link" onclick="runAIScan()">Coba lagi</span> &nbsp;·&nbsp; <span class="ai-rescan-link" onclick="showManualMode()">Isi manual</span></div>`;
+    if (banner) banner.style.display = '';
+  }
+}
+
+function showManualMode() {
+  const hint = document.getElementById('scan-manual-hint');
+  if (hint) {
+    hint.style.display = '';
+    hint.innerHTML = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--brand-mid);fill:none;stroke-width:2;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Isi angka gizi dari foto di samping secara manual.`;
+  }
+  document.getElementById('sc-cal').focus();
 }
 
 function resetScanPhoto() {
@@ -2043,6 +2255,17 @@ function resetScanPhoto() {
   document.getElementById('sc-servings').value = '1';
   document.getElementById('sc-fav').checked = false;
   document.getElementById('scan-total-preview').textContent = '';
+  // Reset AI UI
+  const banner = document.getElementById('ai-scan-banner');
+  if (banner) {
+    banner.style.display = '';
+    const btn = banner.querySelector('.ai-scan-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Baca Label'; }
+  }
+  const statusEl = document.getElementById('ai-scan-status');
+  if (statusEl) statusEl.style.display = 'none';
+  const manualHint = document.getElementById('scan-manual-hint');
+  if (manualHint) manualHint.style.display = 'none';
 }
 
 function openZoomModal() {
